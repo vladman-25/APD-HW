@@ -1,0 +1,23 @@
+MAN ANDREI VLAD 336CA
+
+Am folosit in realizarea temei modelul Replicated Workers (Executor service).
+Pentru I/O am folosit BufferedReader / Writer, fiind thread-safe.
+
+Cum functioneaza Tema ?
+
+In main, se adauga in pool P task-uri de nivel 1.
+
+Fiecare task de nivel 1
+    - citeste o linie din fisier (unica).
+    - parseza linia in id_produs + nr_produse
+    - adauga in pool-ul task-urilor de nivel 2 => {nr_produse} task-uri (ca numar) care vor cauta comenzile cu id-ul de pe linia curenta.
+    - de asemenea, pentru a putea fi parcurs in integime mereu fisierul, pentru fiecare set de task-uri de nivel 2 se da un alt BufferedReader
+    {citeste mai jos iar apoi revino aici}
+    - task-ul curent va astepta intr-un while terminarea executiei task-urilor de nivel 2 (pana pool-ul va avea 0 task-uri)
+    - scrie in fisier id_comanda + nr_produse (gasite => determinat prind contorul transmis si incrementat in lvl2) !daca nr_produse difera de 0
+
+Fiecare task de nivel 2
+    - cauta in fisier o aparitie a comenzii respective
+    - cand o gaseste, scrie in fisier id_comanda + id_produs + shipped
+    - creste contorul pentru nr de produse gasite din comanda
+    -finalizeza task-ul (decrement)

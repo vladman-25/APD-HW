@@ -1,0 +1,75 @@
+MAN ANDREI VLAD 336CA
+TEMA 1 APD - 2022
+
+1. Date de intrare
+    - Se citesc datele de intrare date prin linia de comanda iar apoi
+    se stocheaza fisierele de intrare intr-un vector de structuri cu {nume,dimensiune}
+
+2. Fisierele de intrare
+    - Pentru ca mapperi sa primeasca volume similare de munca acestia vor primi dintr-o lista,
+    sortata in functie de dimensiunea fisierelor de la mare la mic, pe rand, un anumit fisier.
+    - In momentul acesta se face lock pe variabila corespondenta indexului general pentru ca
+    thread-urile sa nu ia doua fisisere cu acelasi nume
+    - Am considerat asta fiind o metoda optima de impartire a fisierlor deoarece daca un fisier
+    termina munca, ia alt fisier independent de restul thread urilor. De asemenea, daca impartim
+    mai intai fisierele mai mari, ne vom asigura ca toate vor munci in mod egal. Exemplu ->
+        -- avem 4 mapperi si 6 fisiere de dimensiuni in ordinea asta ->
+            f1 100k | f2 20k | f3 20k | f4 100k| f5 20k | f6 100k
+        -- sortam fisiserele dupa dimensiuni deci ->
+            f1 100k | f4 100k| f6 100k | f2 20k | f3 20k |f5 20k
+        -- m1 ia f1, m2 ia f4, m3 ia f6, m4 ia f2
+        -- m4 termina primul fisierul alocat, deci va mai lua inca unul f3
+        -- m4 termina iar fisierul alocat, deci va mai lua inca unul f5
+        -- concluziew -> m1 a procesat 100k, m2 a procesat 100k, m3 a procesat 100k, m4 a procesat 60k
+        -- practic daca thread-urile merg la fel de rapid sau din contra, unul este semnificativ 
+        mai lent, volumul de munca (in timp) va fi acelasi.
+
+3. Variabile utilizate
+    - structurile de fisiere (explicate mai sus)
+    - liste partiale -> partialLists[M][R+2][1000]
+        -- fiecare mapper are alocat un segment corespondent id-ului sau -> partialLists[id][x][x]
+        unde va stoca rezultatele
+        --  R+2 dimesniune pentru puterea maxima (desi este R+1, da, am alocat mai mult)
+        -- 1000 consideram ca ar fi numarul maxim de numere rezultate ca puteri perfecte pentru o anumita
+        putere
+    - liste indexi -> indexes[M][R+2]
+        -- explicatie ca mai sus + se folosesc pentru indexul la care se pune urmatorul numar in partialLists
+
+4. Mappers
+    - Dupa cum am explicat, exista un mutex care face lock pe indexul fisierului pentru a ne asigura
+    ca nu se suprapun thread urile pe acelasi fisier.
+    - Din fiecare fisier, se citeste pe rand cate un numar
+    - Se verifica daca numarul este 1 pentru a se adauga la toate listele partiale.
+    - Pentru numere >1 am compus si optimizat un algoritm.
+        -- Numerele noastre trebuie sa fie de forma n = base ^ power pentru a intra in liste
+        -- Consideram ca pentru numere pare, baza poate fi doar numar par iar pentru impare,
+        baza poate fi doar numar impar -> iteram din 2 in 2 deci s-a eficientizat de 2 ori algoritmul
+        -- Se verifica pana cand baza * baza > n deoarece nu poate fi nici macar patrat perfect mai departe
+        -- Se trece printr-un while care verifica daca numarul n este divizibil cu baza, iar daca da creste
+        puterea si se imparte numarul respectiv. Verificam pana cand numarul nu se mai imparte la baza respectiva
+        sau pana cand puterea depaseste puterea maxima.
+        -- Aici vine o a doua optimizare majora -> daca un numar k este divizor doar o data pentru x si
+        este si numar prim, atunci x va fi de forma k * M unde M nu va fi divizibil cu k. Deci x nu poate fi
+        nicio putere perfecta mai departe si se trece la urmatorul numar.
+        -- Daca din numarul nostru ramane ca rezultat 1, acesta s-a impartit perfect la o anumita baza cu putere
+        mai mica sau egala cu cea maxima -> se adauga x in lista partiala [thread_id][pow]
+    - Daca nu mai raman fisiere disponibile, thread-ul se duce la final unde intalneste o bariera.
+
+5. Bariera
+    - Pentru a sincroniza mappers si reducers, folosim o bariera de m+r
+    - Thread-urile se pornesc in acelasi timp.
+    - Reducers asteapta la bariera inainte sa inceapa sa execute orice din misiunea lor
+    - Mappers, dupa ce termina de executat tot, inainte sa se inchida, ajung la bariera pe care cu toii
+    o vor debloca pentru reducers.
+    - Astfel toate thread-urile pornesc si se reunesc in acelasi loc, doar ca reducers asteapta terminarea
+    executiei mappers inainte sa inceapa fara a folosi altceva in afar de o bariera.
+
+6. Reducers
+    - Fiecare reducer va primi listele partiale [M][thread_id_reducer][N], unde M va fi pentru toti mappers
+    - Se iau de la fiecare index i din M toate numerele si se retin intr-o lista unica thread-ului.
+    - Sortam lista unica pentru a putea numara mai usor valorile unice
+
+
+
+
+
